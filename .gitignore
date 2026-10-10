@@ -1,0 +1,5 @@
+# 排除自检截图与临时文件
+_shots/
+*.log
+Thumbs.db
+Desktop.ini

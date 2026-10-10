@@ -1,0 +1,891 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文图故事游戏</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23f0c674' d='M12 5.2C10.2 3.9 7.9 3.5 5 3.5c-.6 0-1 .4-1 1V18c0 .6.4 1 1 1 2.9 0 5.2.4 7 1.7 1.8-1.3 4.1-1.7 7-1.7.6 0 1-.4 1-1V4.5c0-.6-.4-1-1-1-2.9 0-5.2.4-7 1.7zM11 17.5c-1.6-.7-3.6-1-6-1V5.9c2.4 0 4.4.3 6 1v10.6zm2 0V6.9c1.6-.7 3.6-1 6-1v10.6c-2.4 0-4.4.3-6 1z'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://miaoda.feishu.cn">
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Serif+SC:wght@400;600;900&display=swap">
+<style>
+:root{
+  --bg:#10141d;
+  --accent:#f0c674;
+  --accent-2:#e2a94e;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--bg);
+  color:#fff;
+  font-family:"Noto Serif SC","Songti SC","STSong","SimSun",serif;
+  overflow:hidden;
+}
+.game{position:fixed;inset:0;overflow:hidden}
+.bg{
+  position:absolute;inset:0;
+  background-color:var(--bg);
+  background-size:auto 100%;
+  background-position:center;
+  transition:opacity .18s ease;
+}
+.bg.plain{
+  background:radial-gradient(120% 95% at 50% 8%, #232c40 0%, #10141d 58%);
+  background-size:cover;
+}
+.bg-video-box{
+  position:absolute;top:0;left:0;right:0;bottom:0;z-index:1;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bg);
+}
+.bg-video-box[hidden]{display:none}
+.bg-video-box video{height:100%;width:auto}
+.game.fading .bg,
+.game.fading .bg-video-box,
+.game.fading .stage{opacity:0}
+.stage{position:absolute;inset:0;z-index:2;transition:opacity .18s ease}
+
+/* 顶栏 */
+.topbar{
+  position:absolute;top:0;left:0;right:0;z-index:5;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 22px;
+  background:linear-gradient(180deg, rgba(8,10,16,.62), rgba(8,10,16,0));
+}
+.tb-group{display:flex;align-items:center;gap:4px}
+.tb-btn{
+  appearance:none;border:0;background:transparent;color:#ece6d8;
+  font-family:inherit;font-size:14px;cursor:pointer;
+  display:flex;align-items:center;gap:6px;padding:7px 11px;border-radius:7px;
+}
+.tb-btn:hover{background:rgba(255,255,255,.09);color:#fff}
+.tb-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.tb-btn:disabled{opacity:.35;cursor:default;background:transparent;color:#ece6d8}
+.brand{color:#cfc4a8;font-size:12.5px;letter-spacing:.24em}
+
+/* 标题 */
+.head{
+  position:absolute;top:76px;left:0;right:0;z-index:4;
+  text-align:center;padding:0 26px;pointer-events:none;
+}
+.head h1{
+  margin:0;font-size:clamp(25px,4.2vw,46px);font-weight:900;
+  letter-spacing:.02em;color:#fff;line-height:1.35;
+  text-shadow:0 2px 20px rgba(0,0,0,.65), 0 1px 3px rgba(0,0,0,.6);
+}
+
+/* 底部信息区：文字与选项浮在画面上 */
+.overlay{
+  position:absolute;left:0;right:0;bottom:0;z-index:4;
+  padding:70px clamp(20px,7vw,72px) 26px;
+  background:linear-gradient(180deg, rgba(9,11,17,0) 0%, rgba(9,11,17,.5) 34%, rgba(9,11,17,.86) 100%);
+}
+.text{
+  max-height:30vh;overflow-y:auto;
+  font-size:clamp(15px,1.85vw,18px);line-height:1.95;color:#f6f1e6;
+  text-shadow:0 1px 3px rgba(0,0,0,.55);
+}
+.text p{margin:0 0 .95em}
+.text p:last-child{margin:0}
+.text::-webkit-scrollbar{width:6px}
+.text::-webkit-scrollbar-thumb{background:rgba(255,255,255,.28);border-radius:3px}
+.choices{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:16px}
+.choice{
+  appearance:none;border:0;background:transparent;font-family:inherit;
+  font-size:clamp(15px,1.8vw,17px);color:#fff;cursor:pointer;
+  display:flex;align-items:center;gap:10px;padding:9px 6px;border-radius:6px;
+  text-shadow:0 1px 4px rgba(0,0,0,.85), 0 1px 2px rgba(0,0,0,.75);
+  transition:color .15s, transform .15s;
+}
+.choice:hover{color:var(--accent);transform:translateY(-1px)}
+.choice:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.choice .num{
+  font-size:12px;font-weight:600;color:var(--accent-2);
+  text-shadow:0 1px 3px rgba(0,0,0,.9);
+}
+.the-end{
+  text-align:center;color:#ead9ae;letter-spacing:.42em;margin:22px 0 0;
+  font-size:15px;text-shadow:0 1px 3px rgba(0,0,0,.6);
+}
+.foot{
+  text-align:center;color:rgba(255,255,255,.5);font-size:11.5px;
+  margin-top:16px;letter-spacing:.05em;
+}
+
+/* 编辑面板 */
+.modal{
+  position:fixed;inset:0;z-index:20;
+  background:rgba(7,9,14,.66);
+  display:flex;align-items:center;justify-content:center;padding:18px;
+}
+.modal[hidden]{display:none}
+.panel{
+  background:#1a2230;border:1px solid #31405c;border-radius:12px;
+  width:100%;max-width:680px;max-height:90vh;overflow-y:auto;
+  padding:22px 24px;color:#e8e2d4;box-shadow:0 30px 90px rgba(0,0,0,.5);
+}
+.panel h2{margin:0 0 16px;font-size:18px;font-weight:900;color:#f2eee3}
+.node-switch{display:flex;gap:8px;margin-bottom:16px}
+.node-switch select{
+  flex:1;background:#101624;border:1px solid #31405c;border-radius:7px;
+  color:#f2eee3;font-family:inherit;font-size:14px;padding:8px 10px;
+}
+.field{margin-bottom:13px}
+.field label{display:block;font-size:12.5px;color:#9aa7bd;margin-bottom:5px}
+.field input,.field textarea{
+  width:100%;background:#101624;border:1px solid #31405c;border-radius:7px;
+  color:#f2eee3;font-family:inherit;font-size:14px;padding:8px 11px;
+}
+.field input:focus,.field textarea:focus,.node-switch select:focus{outline:2px solid var(--accent-2);outline-offset:1px}
+.field textarea{min-height:120px;resize:vertical;line-height:1.7}
+.img-box img#previewImg{
+  display:block;max-width:100%;max-height:150px;border-radius:8px;
+  border:1px solid #31405c;margin-bottom:10px;
+}
+.img-box img#previewImg[hidden]{display:none}
+.img-box video#previewVid{
+  display:block;max-width:100%;max-height:150px;border-radius:8px;
+  border:1px solid #31405c;margin-bottom:10px;background:#000;
+}
+.img-box video#previewVid[hidden]{display:none}
+.img-actions{display:flex;gap:8px;margin-bottom:8px}
+.img-note{font-size:11.5px;color:#7d8aa1;margin:2px 0 8px;line-height:1.6}
+.opt-row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+.opt-row input{flex:1;background:#101624;border:1px solid #31405c;border-radius:7px;color:#f2eee3;font-family:inherit;font-size:14px;padding:8px 11px}
+.opt-row .del{
+  appearance:none;border:0;background:transparent;color:#c97b6d;
+  font-size:16px;cursor:pointer;padding:6px 8px;border-radius:6px;
+}
+.opt-row .del:hover{background:rgba(201,123,109,.14)}
+.btn{
+  appearance:none;border:1px solid #3c4d6e;background:#27324d;color:#e8e2d4;
+  font-family:inherit;font-size:13.5px;padding:8px 14px;border-radius:7px;cursor:pointer;
+}
+.btn:hover{border-color:#5a74a0;background:#2e3b5c}
+.btn-ghost{background:transparent}
+.btn-ghost:hover{background:rgba(255,255,255,.06)}
+.panel-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+.hint{font-size:12.5px;color:#8fd08f;margin-top:8px;min-height:16px;line-height:1.6}
+.hint.err{color:#d99a8a}
+
+@media (max-width:640px){
+  .topbar{padding:12px 14px}
+  .brand{display:none}
+  .head{top:64px}
+  .overlay{padding:56px 16px 20px}
+  .text{max-height:34vh}
+  .choices{flex-direction:column;align-items:flex-start;gap:2px}
+  .panel{padding:18px}
+  .node-switch{flex-direction:column}
+  .node-switch select{width:100%}
+  .field input,.field textarea,.opt-row input,.node-switch select{font-size:16px}
+  .opt-row{flex-direction:column;align-items:stretch}
+  .opt-row .del{align-self:flex-end}
+  .img-actions{flex-wrap:wrap}
+  .panel-actions{flex-direction:column}
+  .panel-actions .btn{width:100%}
+}
+@media (prefers-reduced-motion:reduce){
+  .bg,.stage{transition:none}
+}
+</style>
+</head>
+<body>
+<div class="game" id="game">
+  <div class="bg" id="bg" aria-hidden="true"></div>
+  <div class="bg-video-box" id="bgVideoBox" hidden aria-hidden="true"><video id="bgVideo" muted autoplay loop playsinline></video></div>
+  <div class="stage" id="stage">
+    <header class="topbar">
+      <button class="tb-btn" id="back" type="button" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+        <span>上一步</span>
+      </button>
+      <span class="brand">文图故事</span>
+      <div class="tb-group">
+        <button class="tb-btn" id="editBtn" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+          <span>编辑</span>
+        </button>
+        <button class="tb-btn" id="restart" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+          <span>重新开始</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="head"><h1 id="title"></h1></div>
+
+    <div class="overlay">
+      <div class="text" id="text" aria-live="polite"></div>
+      <div class="choices" id="choices"></div>
+      <p class="the-end" id="theEnd" hidden>— 完 —</p>
+      <p class="foot">进度自动保存在本机 · 想回到开头就点「重新开始」</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="panel" role="dialog" aria-label="编辑故事">
+    <h2>编辑故事</h2>
+    <div class="node-switch">
+      <select id="nodeSel" aria-label="选择章节"></select>
+      <button class="btn" id="newNode" type="button">＋ 新节点</button>
+    </div>
+    <div class="field">
+      <label>配图</label>
+      <div class="img-box">
+        <img id="previewImg" alt="配图预览" hidden>
+        <video id="previewVid" controls muted hidden></video>
+        <div class="img-actions">
+          <button class="btn" id="uploadBtn" type="button">上传图片</button>
+          <button class="btn btn-ghost" id="clearImgBtn" type="button">移除图片</button>
+        </div>
+        <input type="file" id="fileInput" accept="image/*,video/*" hidden>
+        <p class="img-note">直接选一张本机图片或一段视频，上传后立即生效并保存在本机浏览器里（图片限 10MB、视频限 50MB）。也可以把文件放进 assets 文件夹，在下面填文件名（如 library.jpg / library.mp4）；留空则自动找 assets/节点名.jpg 或 .mp4。</p>
+        <input id="fImg" type="text" placeholder="或填写 assets 里的图片/视频文件名（可留空）">
+      </div>
+    </div>
+    <div class="field"><label>标题</label><input id="fTitle" type="text"></div>
+    <div class="field"><label>正文（每行一段）</label><textarea id="fText" spellcheck="false"></textarea></div>
+    <div class="field">
+      <label>选项（按钮文字 → 去向节点；不填任何选项 = 本页是结局；去向填新名字会自动创建对应节点）</label>
+      <div id="optRows"></div>
+      <button class="btn btn-ghost" id="addOpt" type="button">＋ 添加选项</button>
+    </div>
+    <datalist id="nodeList"></datalist>
+    <div class="hint" id="editHint"></div>
+    <div class="panel-actions">
+      <button class="btn btn-ghost" id="exportBtn" type="button">导出数据文件</button>
+      <button class="btn btn-ghost" id="clearBtn" type="button">清除本地修改</button>
+      <button class="btn btn-ghost" id="closeBtn" type="button">关闭</button>
+      <button class="btn" id="saveBtn" type="button">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="story_data.js"></script>
+<script>
+(function () {
+  var DATA = window.STORY_DATA || [];
+  var EDIT_KEY = 'storygame_edit_v3';
+  var STATE_KEY = 'storygame_state_v1';
+  var IDB_NAME = 'storygame_idb_v1';
+  var IDB_STORE = 'imgs';
+
+  var game = document.getElementById('game');
+  var bg = document.getElementById('bg');
+  var bgVideoBox = document.getElementById('bgVideoBox');
+  var bgVideo = document.getElementById('bgVideo');
+  var titleEl = document.getElementById('title');
+  var textEl = document.getElementById('text');
+  var choicesEl = document.getElementById('choices');
+  var theEndEl = document.getElementById('theEnd');
+  var backBtn = document.getElementById('back');
+  var restartBtn = document.getElementById('restart');
+  var editBtn = document.getElementById('editBtn');
+  var modal = document.getElementById('modal');
+  var nodeSel = document.getElementById('nodeSel');
+  var newNodeBtn = document.getElementById('newNode');
+  var preview = document.getElementById('previewImg');
+  var previewVid = document.getElementById('previewVid');
+  var uploadBtn = document.getElementById('uploadBtn');
+  var clearImgBtn = document.getElementById('clearImgBtn');
+  var fileInput = document.getElementById('fileInput');
+  var fImg = document.getElementById('fImg');
+  var fTitle = document.getElementById('fTitle');
+  var fText = document.getElementById('fText');
+  var optRows = document.getElementById('optRows');
+  var addOptBtn = document.getElementById('addOpt');
+  var nodeList = document.getElementById('nodeList');
+  var editHint = document.getElementById('editHint');
+  var saveBtn = document.getElementById('saveBtn');
+  var exportBtn = document.getElementById('exportBtn');
+  var clearBtn = document.getElementById('clearBtn');
+  var closeBtn = document.getElementById('closeBtn');
+
+  /* ---------- IndexedDB（存上传的图片） ---------- */
+  function idbOpen() {
+    return new Promise(function (res, rej) {
+      try {
+        var r = indexedDB.open(IDB_NAME, 1);
+        r.onupgradeneeded = function () { r.result.createObjectStore(IDB_STORE); };
+        r.onsuccess = function () { res(r.result); };
+        r.onerror = function () { rej(r.error); };
+      } catch (e) { rej(e); }
+    });
+  }
+  function idbGet(key) {
+    return idbOpen().then(function (db) {
+      return new Promise(function (res, rej) {
+        var tx = db.transaction(IDB_STORE, 'readonly');
+        var req = tx.objectStore(IDB_STORE).get(key);
+        req.onsuccess = function () { res(req.result || ''); };
+        req.onerror = function () { rej(req.error); };
+      });
+    });
+  }
+  function idbSet(key, val) {
+    return idbOpen().then(function (db) {
+      return new Promise(function (res, rej) {
+        var tx = db.transaction(IDB_STORE, 'readwrite');
+        tx.objectStore(IDB_STORE).put(val, key);
+        tx.oncomplete = function () { res(); };
+        tx.onerror = function () { rej(tx.error); };
+      });
+    });
+  }
+  function idbClear() {
+    return idbOpen().then(function (db) {
+      return new Promise(function (res, rej) {
+        var tx = db.transaction(IDB_STORE, 'readwrite');
+        tx.objectStore(IDB_STORE).clear();
+        tx.oncomplete = function () { res(); };
+        tx.onerror = function () { rej(tx.error); };
+      });
+    });
+  }
+
+  /* ---------- 数据层 ---------- */
+  function getEdit() {
+    try { var r = localStorage.getItem(EDIT_KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; }
+  }
+  function setEdit(ed) {
+    try { localStorage.setItem(EDIT_KEY, JSON.stringify(ed)); } catch (e) {}
+  }
+  function buildMap() {
+    var map = {}, order = [];
+    DATA.forEach(function (n) {
+      var c = JSON.parse(JSON.stringify(n));
+      map[c.id] = c; order.push(c.id);
+    });
+    var ed = getEdit();
+    if (ed && ed.nodes) {
+      Object.keys(ed.nodes).forEach(function (id) {
+        map[id] = ed.nodes[id];
+        if (order.indexOf(id) < 0) order.push(id);
+      });
+    }
+    return { map: map, order: order };
+  }
+  var cur = buildMap();
+  function startId() {
+    if (cur.map['start']) return 'start';
+    if (cur.map['序章']) return '序章';
+    return cur.order[0] || '';
+  }
+
+  /* ---------- 游戏状态 ---------- */
+  var current = startId();
+  var history = [];
+  function saveState() {
+    try { localStorage.setItem(STATE_KEY, JSON.stringify({ n: current, h: history })); } catch (e) {}
+  }
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(STATE_KEY);
+      if (!raw) return;
+      var s = JSON.parse(raw);
+      if (s && cur.map[s.n]) {
+        current = s.n;
+        history = Array.isArray(s.h) ? s.h.filter(function (x) { return cur.map[x]; }) : [];
+      }
+    } catch (e) {}
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"]/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch];
+    });
+  }
+
+  /* ---------- 媒体解析：图片或视频，支持 data: / idb: / assets文件名 / 自动匹配 ---------- */
+  function isVideoUrl(url) {
+    return /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url) || url.indexOf('data:video/') === 0;
+  }
+  /* blob URL 管理：只在真正替换时释放，绝不在播放中回收 */
+  var bgUrl = null;
+  var preUrl = null;
+  function adoptBgUrl(u) {
+    if (bgUrl && bgUrl !== u) { try { URL.revokeObjectURL(bgUrl); } catch (e) {} }
+    bgUrl = (u && u.indexOf('blob:') === 0) ? u : null;
+    return u;
+  }
+  function releaseBgUrl() {
+    if (bgUrl) { try { URL.revokeObjectURL(bgUrl); } catch (e) {} }
+    bgUrl = null;
+  }
+  function adoptPreUrl(u) {
+    if (preUrl && preUrl !== u) { try { URL.revokeObjectURL(preUrl); } catch (e) {} }
+    preUrl = (u && u.indexOf('blob:') === 0) ? u : null;
+    return u;
+  }
+  function dataUrlToObjectUrl(dataUrl) {
+    try {
+      var parts = dataUrl.split(',');
+      var mime = (parts[0].match(/:(.*?);/) || [])[1] || '';
+      var bin = atob(parts[1]);
+      var bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return URL.createObjectURL(new Blob([bytes], { type: mime }));
+    } catch (e) { return dataUrl; }
+  }
+  function blobToDataUrl(blob) {
+    return new Promise(function (res, rej) {
+      var r = new FileReader();
+      r.onload = function () { res(r.result); };
+      r.onerror = function () { rej(r.error); };
+      r.readAsDataURL(blob);
+    });
+  }
+  function resolveMedia(n, cb) {
+    var img = n.img || '';
+    if (img.indexOf('data:') === 0) {
+      if (img.indexOf('data:video/') === 0) cb({ kind: 'video', src: dataUrlToObjectUrl(img) });
+      else cb({ kind: 'image', src: img });
+      return;
+    }
+    if (img.indexOf('idb:') === 0) {
+      idbGet(img.slice(4)).then(function (d) {
+        if (!d) { cb(null); return; }
+        if (typeof d === 'string') {
+          if (d.indexOf('data:video/') === 0) cb({ kind: 'video', src: dataUrlToObjectUrl(d) });
+          else cb({ kind: 'image', src: d });
+        } else if (d instanceof Blob) {
+          cb({ kind: d.type && d.type.indexOf('video/') === 0 ? 'video' : 'image', src: URL.createObjectURL(d) });
+        } else { cb(null); }
+      }, function () { cb(null); });
+      return;
+    }
+    if (img) {
+      var clean = img.replace(/['"\\]/g, '');
+      cb({ kind: isVideoUrl(clean) ? 'video' : 'image', src: 'assets/' + clean });
+      return;
+    }
+    // 自动匹配：先图片后视频
+    var cands = [
+      'assets/' + n.id + '.jpg', 'assets/' + n.id + '.png', 'assets/' + n.id + '.webp',
+      'assets/' + n.id + '.mp4', 'assets/' + n.id + '.webm'
+    ];
+    var i = 0;
+    (function next() {
+      if (i >= cands.length) { cb(null); return; }
+      var url = cands[i++].replace(/['"\\]/g, '');
+      var probe = new Image();
+      probe.onload = function () { cb({ kind: 'image', src: url }); };
+      probe.onerror = function () {
+        if (isVideoUrl(url)) {
+          var v = document.createElement('video');
+          v.oncanplay = function () { cb({ kind: 'video', src: url }); };
+          v.onerror = function () { next(); };
+          v.src = url;
+        } else { next(); }
+      };
+      probe.src = url;
+    })();
+  }
+
+  /* ---------- 背景（全屏铺满，图片和视频都支持，视频自动循环播放） ---------- */
+  var bgSeq = 0;
+  function renderMedia(n) {
+    var my = ++bgSeq;
+    resolveMedia(n, function (media) {
+      if (my !== bgSeq) return;
+      releaseBgUrl();
+      if (!media) {
+        bgVideo.dataset.cur = '';
+        bgVideo.pause(); bgVideo.removeAttribute('src'); bgVideoBox.hidden = true;
+        bg.style.backgroundImage = ''; bg.className = 'bg plain';
+        return;
+      }
+      if (media.kind === 'video') {
+        bg.style.backgroundImage = ''; bg.className = 'bg';
+        if (bgVideo.dataset.cur !== media.src) {
+          bgVideo.dataset.cur = media.src;
+          bgVideo.pause();
+          bgVideo.removeAttribute('src');
+          bgVideoBox.hidden = false;
+          bgVideo.muted = true;
+          bgVideo.loop = true;
+          bgVideo.setAttribute('playsinline', '');
+          var tryPlay = function () {
+            var p = bgVideo.play();
+            if (p && p.catch) p.catch(function (e) { console.warn('bg play:', e && e.name); });
+          };
+          bgVideo.oncanplay = tryPlay;
+          bgVideo.onloadeddata = tryPlay;
+          bgVideo.onended = function () { tryPlay(); };
+          bgVideo.onerror = function () {
+            console.warn('bg video error', bgVideo.error ? bgVideo.error.code : '');
+            bgVideoBox.hidden = true;
+            bg.className = 'bg plain';
+          };
+          bgVideo.src = adoptBgUrl(media.src);
+        } else if (bgVideo.paused) {
+          var p = bgVideo.play();
+          if (p && p.catch) p.catch(function () {});
+        }
+      } else {
+        bgVideo.dataset.cur = '';
+        bgVideo.pause(); bgVideo.removeAttribute('src'); bgVideoBox.hidden = true;
+        bg.style.backgroundImage = "url('" + adoptBgUrl(media.src).replace(/['"\\]/g, '') + "')";
+        bg.className = 'bg';
+      }
+    });
+  }
+
+  /* 心跳：背景视频意外暂停时自动续播，确保始终循环播放 */
+  setInterval(function () {
+    if (bgVideoBox.hidden) return;
+    if (!bgVideo.src) return;
+    if (bgVideo.readyState >= 2 && bgVideo.paused) {
+      var p = bgVideo.play();
+      if (p && p.catch) p.catch(function () {});
+    }
+  }, 800);
+
+  /* ---------- 渲染 ---------- */
+  function apply() {
+    var n = cur.map[current];
+    backBtn.disabled = history.length === 0;
+
+    if (!n) {
+      titleEl.textContent = '章节缺失';
+      textEl.innerHTML = '<p>找不到节点「' + escapeHtml(current) + '」。请到「编辑」里检查选项指向的节点名。</p>';
+      choicesEl.innerHTML = '';
+      theEndEl.hidden = true;
+      renderMedia({ id: current, img: '' });
+      return;
+    }
+
+    titleEl.textContent = n.title || '(未命名章节)';
+    textEl.innerHTML = n.text.map(function (p) { return '<p>' + escapeHtml(p) + '</p>'; }).join('');
+    renderMedia(n);
+
+    choicesEl.innerHTML = '';
+    var isEnd = !n.choices || n.choices.length === 0;
+    theEndEl.hidden = !isEnd;
+
+    if (isEnd) {
+      var rb = document.createElement('button');
+      rb.type = 'button';
+      rb.className = 'choice';
+      rb.innerHTML = '<span class="num">↻</span><span>从头再读一遍</span>';
+      rb.addEventListener('click', doRestart);
+      choicesEl.appendChild(rb);
+    } else {
+      n.choices.forEach(function (c, i) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'choice';
+        b.innerHTML = '<span class="num">' + (i < 9 ? '0' + (i + 1) : (i + 1)) + '</span><span>' + escapeHtml(c.label) + '</span>';
+        b.addEventListener('click', function () { go(c.target); });
+        choicesEl.appendChild(b);
+      });
+    }
+  }
+
+  var timer = null;
+  function render() {
+    game.classList.add('fading');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      apply();
+      game.classList.remove('fading');
+    }, 180);
+  }
+
+  function go(id) {
+    if (!cur.map[id]) return;
+    history.push(current);
+    current = id;
+    saveState();
+    render();
+  }
+  function back() {
+    if (history.length === 0) return;
+    current = history.pop();
+    saveState();
+    render();
+  }
+  function doRestart() {
+    current = startId();
+    history = [];
+    try { localStorage.removeItem(STATE_KEY); } catch (e) {}
+    render();
+  }
+
+  backBtn.addEventListener('click', back);
+  restartBtn.addEventListener('click', doRestart);
+
+  /* ---------- 编辑面板 ---------- */
+  function fillNodeSel(keep) {
+    var prev = nodeSel.value;
+    nodeSel.innerHTML = '';
+    cur.order.forEach(function (id) {
+      var o = document.createElement('option');
+      o.value = id;
+      var t = cur.map[id].title || id;
+      o.textContent = (t === id) ? id : t + '（' + id + '）';
+      nodeSel.appendChild(o);
+    });
+    var pick = (keep && cur.map[prev]) ? prev : (cur.map[current] ? current : cur.order[0] || '');
+    nodeSel.value = pick;
+    fillNodeList();
+  }
+  function fillNodeList() {
+    nodeList.innerHTML = '';
+    cur.order.forEach(function (id) {
+      var o = document.createElement('option');
+      o.value = id;
+      o.label = cur.map[id].title || id;
+      nodeList.appendChild(o);
+    });
+  }
+  function optRow(label, target) {
+    var row = document.createElement('div');
+    row.className = 'opt-row';
+    var i1 = document.createElement('input');
+    i1.className = 'opt-label';
+    i1.placeholder = '按钮文字';
+    i1.value = label || '';
+    var i2 = document.createElement('input');
+    i2.className = 'opt-target';
+    i2.placeholder = '选择或输入节点名';
+    i2.setAttribute('list', 'nodeList');
+    i2.value = target || '';
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'del';
+    del.textContent = '✕';
+    del.addEventListener('click', function () { row.remove(); });
+    row.appendChild(i1); row.appendChild(i2); row.appendChild(del);
+    optRows.appendChild(row);
+  }
+  function refreshPreview() {
+    var id = nodeSel.value;
+    var n = cur.map[id] || {};
+    var img = n.img || '';
+    fImg.value = (img.indexOf('idb:') === 0 || img.indexOf('data:') === 0) ? '' : img;
+    resolveMedia(n, function (media) {
+      adoptPreUrl(null);
+      if (!media) {
+        preview.hidden = true; preview.removeAttribute('src');
+        previewVid.hidden = true; previewVid.removeAttribute('src');
+        return;
+      }
+      if (media.kind === 'video') {
+        preview.hidden = true; preview.removeAttribute('src');
+        previewVid.src = adoptPreUrl(media.src.replace(/['"\\]/g, ''));
+        previewVid.hidden = false;
+      } else {
+        previewVid.hidden = true; previewVid.removeAttribute('src');
+        preview.src = adoptPreUrl(media.src.replace(/['"\\]/g, ''));
+        preview.hidden = false;
+      }
+    });
+  }
+  function fillPanel() {
+    var id = nodeSel.value;
+    var n = cur.map[id] || { id: id, title: '', img: '', text: [], choices: [] };
+    fTitle.value = n.title || '';
+    fText.value = (n.text || []).join('\n');
+    optRows.innerHTML = '';
+    (n.choices || []).forEach(function (c) { optRow(c.label, c.target); });
+    refreshPreview();
+  }
+  function collectChoices() {
+    var choices = [];
+    Array.prototype.forEach.call(optRows.querySelectorAll('.opt-row'), function (row) {
+      var label = row.querySelector('.opt-label').value.trim();
+      var target = row.querySelector('.opt-target').value.trim();
+      if (label && target) choices.push({ label: label, target: target });
+    });
+    return choices;
+  }
+  function persistCurrent(id, imgValue) {
+    var ed = getEdit() || { nodes: {}, order: [] };
+    var choices = collectChoices();
+    var created = [];
+    choices.forEach(function (c) {
+      var exists = ed.nodes[c.target] || DATA.some(function (d) { return d.id === c.target; });
+      if (!exists) {
+        ed.nodes[c.target] = { id: c.target, title: c.target, img: '', text: ['（新场景：去「编辑」里补充这一页的内容。）'], choices: [] };
+        created.push(c.target);
+      }
+      if (ed.order.indexOf(c.target) < 0) ed.order.push(c.target);
+    });
+    var textLines = fText.value.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+    var prevNode = cur.map[id] || {};
+    var prevImg = prevNode.img || '';
+    var imgVal;
+    if (imgValue !== undefined) {
+      imgVal = imgValue;
+    } else if (fImg.value.trim()) {
+      imgVal = fImg.value.trim();
+    } else if (prevImg.indexOf('idb:') === 0 || prevImg.indexOf('data:') === 0) {
+      imgVal = prevImg; /* 保留已上传的图片/视频，避免被空输入框覆盖 */
+    } else {
+      imgVal = '';
+    }
+    ed.nodes[id] = {
+      id: id,
+      title: fTitle.value.trim() || '(未命名章节)',
+      img: imgVal,
+      text: textLines,
+      choices: choices
+    };
+    if (ed.order.indexOf(id) < 0) ed.order.push(id);
+    setEdit(ed);
+    return created;
+  }
+  function hint(msg, isErr) {
+    editHint.textContent = msg || '';
+    editHint.className = isErr ? 'hint err' : 'hint';
+  }
+  function openPanel() {
+    fillNodeSel();
+    fillPanel();
+    modal.hidden = false;
+    hint('');
+  }
+  function closePanel() { modal.hidden = true; }
+
+  editBtn.addEventListener('click', openPanel);
+  closeBtn.addEventListener('click', closePanel);
+  nodeSel.addEventListener('change', fillPanel);
+
+  newNodeBtn.addEventListener('click', function () {
+    var name = window.prompt('新节点的名字（用中文就行，比如「书房」）：', '书房');
+    if (!name) return;
+    name = name.trim();
+    if (!/^[\w\u4e00-\u9fa5-]+$/.test(name)) {
+      hint('节点名只能包含中英文、数字、下划线和短横线，不能有空格。', true);
+      return;
+    }
+    if (cur.map[name]) { hint('节点「' + name + '」已经存在。', true); return; }
+    var ed = getEdit() || { nodes: {}, order: [] };
+    ed.nodes[name] = { id: name, title: name, img: '', text: ['在这里写这一页的正文……'], choices: [] };
+    if (ed.order.indexOf(name) < 0) ed.order.push(name);
+    setEdit(ed);
+    cur = buildMap();
+    fillNodeSel(true);
+    nodeSel.value = name;
+    fillPanel();
+    hint('已创建节点「' + name + '」，填好内容后点「保存」。');
+  });
+
+  addOptBtn.addEventListener('click', function () { optRow('', ''); });
+
+  saveBtn.addEventListener('click', function () {
+    var id = nodeSel.value;
+    if (!id) return;
+    var created = persistCurrent(id);
+    cur = buildMap();
+    var msg = created.length
+      ? '已保存。去向里的新节点已自动创建：' + created.join('、') + '，可在上方下拉框选中继续编辑。'
+      : '已保存到本机浏览器，立即生效。';
+    hint(msg);
+    fillNodeSel(true);
+    fillPanel();
+    if (current === id) apply();
+  });
+
+  uploadBtn.addEventListener('click', function () { fileInput.click(); });
+  clearImgBtn.addEventListener('click', function () {
+    var id = nodeSel.value;
+    if (!id) return;
+    persistCurrent(id, '');
+    cur = buildMap();
+    hint('已移除配图（图片/视频）。');
+    refreshPreview();
+    if (current === id) renderMedia(cur.map[id]);
+  });
+  fileInput.addEventListener('change', function () {
+    var file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    var isVideo = file.type.indexOf('video/') === 0 || /\.(mp4|webm|mov|m4v)$/i.test(file.name);
+    var limit = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (file.size > limit) {
+      hint((isVideo ? '视频' : '图片') + '超过大小限制（' + (isVideo ? '50MB' : '10MB') + '），请压缩后再上传。', true);
+      fileInput.value = '';
+      return;
+    }
+    var id = nodeSel.value;
+    if (!id) { hint('请先选择或创建一个节点。', true); fileInput.value = ''; return; }
+    var reader = new FileReader();
+    reader.onload = function () {
+      var buf = reader.result;
+      var blob = new Blob([buf], { type: file.type || (isVideo ? 'video/mp4' : 'image/jpeg') });
+      idbSet(id, blob).then(function () {
+        persistCurrent(id, 'idb:' + id);
+        cur = buildMap();
+        hint((isVideo ? '视频' : '图片') + '已上传并保存，立即生效。');
+        refreshPreview();
+        if (current === id) renderMedia(cur.map[id]);
+      }, function () {
+        hint((isVideo ? '视频' : '图片') + '保存失败：浏览器存储不可用。', true);
+      });
+      fileInput.value = '';
+    };
+    reader.onerror = function () {
+      hint('读取文件失败，请换一个试试。', true);
+      fileInput.value = '';
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  exportBtn.addEventListener('click', function () {
+    var tasks = [];
+    cur.order.forEach(function (id) {
+      var n = cur.map[id];
+      if (!n) return;
+      if (n.img && n.img.indexOf('idb:') === 0) {
+        tasks.push(idbGet(n.img.slice(4)).then(function (d) {
+          var c = JSON.parse(JSON.stringify(n));
+          if (d && typeof d !== 'string') {
+            return blobToDataUrl(d).then(function (dataUrl) { c.img = dataUrl || ''; return c; });
+          }
+          c.img = d || '';
+          return c;
+        }));
+      } else {
+        tasks.push(Promise.resolve(JSON.parse(JSON.stringify(n))));
+      }
+    });
+    Promise.all(tasks).then(function (nodes) {
+      var rows = nodes.map(function (n) { return JSON.stringify(n); });
+      var js = 'window.STORY_DATA = [\n' + rows.join(',\n') + '\n];\n';
+      try {
+        var blob = new Blob([js], { type: 'text/javascript' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'story_data.js';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+        hint('已导出 story_data.js（含上传的图片）。下载后替换游戏目录里的同名文件即可永久生效。');
+      } catch (e) {
+        hint('导出失败：' + e.message, true);
+      }
+    }).catch(function (e) {
+      hint('导出失败：' + e.message, true);
+    });
+  });
+
+  clearBtn.addEventListener('click', function () {
+    if (!window.confirm('确定清除浏览器里的全部修改和上传的图片，回到文件夹版本吗？')) return;
+    try { localStorage.removeItem(EDIT_KEY); } catch (e) {}
+    idbClear();
+    cur = buildMap();
+    closePanel();
+    if (!cur.map[current]) { current = startId(); history = []; }
+    apply();
+  });
+
+  /* ---------- 启动 ---------- */
+  loadState();
+  apply();
+})();
+</script>
+</body>
+</html>
